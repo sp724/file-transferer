@@ -56,10 +56,9 @@ echo
 source "$SCRIPT_DIR/config.sh"
 
 missing=()
-[[ -z "$REMOTE_HOST" ]]         && missing+=("REMOTE_HOST")
-[[ -z "$REMOTE_USER" ]]         && missing+=("REMOTE_USER")
-[[ -z "$REMOTE_MOVIES_PATH" ]]  && missing+=("REMOTE_MOVIES_PATH")
-[[ -z "$REMOTE_TV_PATH" ]]      && missing+=("REMOTE_TV_PATH")
+[[ -z "$REMOTE_HOST" ]]        && missing+=("REMOTE_HOST")
+[[ -z "$REMOTE_USER" ]]        && missing+=("REMOTE_USER")
+[[ ${#WATCH_PAIRS[@]} -eq 0 ]] && missing+=("WATCH_PAIRS")
 
 if [[ ${#missing[@]} -gt 0 ]]; then
     echo "Error: The following values are missing from config.sh:"
@@ -72,13 +71,14 @@ if [[ ${#missing[@]} -gt 0 ]]; then
 fi
 
 echo "Config:"
-echo "  Remote host   : $REMOTE_HOST (port $REMOTE_PORT)"
-echo "  Remote user   : $REMOTE_USER"
-echo "  Movies path   : $REMOTE_MOVIES_PATH"
-echo "  TV path       : $REMOTE_TV_PATH"
-echo "  Movies dir    : $LOCAL_MOVIES_DIR"
-echo "  TV dir        : $LOCAL_TV_DIR"
-echo "  Log file      : $LOG_FILE"
+echo "  Remote host : $REMOTE_HOST (port $REMOTE_PORT)"
+echo "  Remote user : $REMOTE_USER"
+for pair in "${WATCH_PAIRS[@]}"; do
+    local_dir="${pair%%:*}"
+    remote_path="${pair##*:}"
+    echo "  Watch pair  : $local_dir -> $remote_path"
+done
+echo "  Log file    : $LOG_FILE"
 echo
 
 # -----------------------------------------------------------------------------
@@ -88,13 +88,18 @@ echo
 mkdir -p "$INSTALL_DIR"
 cp "$SCRIPT_DIR/watcher.sh" "$INSTALL_DIR/watcher.sh"
 cp "$SCRIPT_DIR/config.sh"  "$INSTALL_DIR/config.sh"
+cp "$SCRIPT_DIR/status.sh"  "$INSTALL_DIR/status.sh"
 chmod +x "$INSTALL_DIR/watcher.sh"
+chmod +x "$INSTALL_DIR/status.sh"
 echo "Scripts deployed to: $INSTALL_DIR"
 
 # -----------------------------------------------------------------------------
 # 5. Create local transfer directories and log directory
 # -----------------------------------------------------------------------------
-mkdir -p "$LOCAL_MOVIES_DIR" "$LOCAL_TV_DIR"
+for pair in "${WATCH_PAIRS[@]}"; do
+    local_dir="${pair%%:*}"
+    mkdir -p "$local_dir"
+done
 mkdir -p "$(dirname "$LOG_FILE")"
 echo "Local directories created."
 
@@ -166,9 +171,12 @@ echo "Service loaded and running."
 echo
 echo "=== Installation complete ==="
 echo
-echo "  Drop movies here  : $LOCAL_MOVIES_DIR"
-echo "  Drop TV shows here: $LOCAL_TV_DIR"
-echo "  Log file          : $LOG_FILE"
+for pair in "${WATCH_PAIRS[@]}"; do
+    local_dir="${pair%%:*}"
+    echo "  Drop files here : $local_dir"
+done
+echo "  Log file        : $LOG_FILE"
+echo "  Status command  : bash $INSTALL_DIR/status.sh"
 echo
 echo "To check status : launchctl list | grep file-transferer"
 echo "To view logs    : tail -f \"$LOG_FILE\""
